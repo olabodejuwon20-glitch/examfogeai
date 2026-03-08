@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { GraduationCap, ArrowLeft, CheckCircle, XCircle, Trophy } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { GraduationCap, ArrowLeft, CheckCircle, XCircle, Trophy, BookmarkPlus, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface QuestionResult {
   question_id: string;
@@ -26,25 +29,63 @@ interface Question {
   explanation: string;
 }
 
+interface QuestionBank {
+  id: string;
+  name: string;
+}
+
 export default function ResultsPage() {
   const { testId } = useParams<{ testId: string }>();
   const { user } = useAuth();
   const [result, setResult] = useState<any>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
+  const [banks, setBanks] = useState<QuestionBank[]>([]);
+  const [selectedBankId, setSelectedBankId] = useState('');
+  const [savingToBank, setSavingToBank] = useState(false);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
 
   useEffect(() => {
     loadResults();
   }, [testId]);
 
   const loadResults = async () => {
-    const [resultRes, questionsRes] = await Promise.all([
+    const [resultRes, questionsRes, banksRes] = await Promise.all([
       supabase.from('test_results').select('*, test:tests(title)').eq('test_id', testId).eq('user_id', user!.id).order('completed_at', { ascending: false }).limit(1).single(),
       supabase.from('questions').select('*').eq('test_id', testId).order('question_number'),
+      supabase.from('question_banks').select('id, name').order('name'),
     ]);
     if (resultRes.data) setResult(resultRes.data);
     if (questionsRes.data) setQuestions(questionsRes.data);
+    if (banksRes.data) setBanks(banksRes.data as QuestionBank[]);
     setLoading(false);
+  };
+
+  const saveQuestionsToBank = async () => {
+    if (!selectedBankId) {
+      toast.error('Select a question bank');
+      return;
+    }
+    setSavingToBank(true);
+    const toInsert = questions.map((q) => ({
+      bank_id: selectedBankId,
+      question_text: q.question_text,
+      option_a: q.option_a,
+      option_b: q.option_b,
+      option_c: q.option_c,
+      option_d: q.option_d,
+      correct_answer: q.correct_answer,
+      explanation: q.explanation,
+    }));
+
+    const { error } = await supabase.from('saved_questions').insert(toInsert);
+    if (error) {
+      toast.error('Failed to save questions');
+    } else {
+      toast.success(`${questions.length} questions saved to bank!`);
+      setSaveDialogOpen(false);
+    }
+    setSavingToBank(false);
   };
 
   if (loading) {
@@ -98,9 +139,47 @@ export default function ResultsPage() {
           }`} />
           <h1 className="text-4xl font-extrabold text-foreground mb-1">{score}%</h1>
           <p className="text-muted-foreground text-lg mb-2">{result.test?.title}</p>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground mb-4">
             {result.correct_answers} of {result.total_questions} correct
           </p>
+
+          {/* Save to Bank */}
+          <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <BookmarkPlus className="h-4 w-4 mr-2" /> Save to Question Bank
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Save Questions to Bank</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                {banks.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No question banks yet. <Link to="/question-banks" className="text-primary underline">Create one first</Link>.
+                  </p>
+                ) : (
+                  <>
+                    <Select value={selectedBankId} onValueChange={setSelectedBankId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a bank" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {banks.map((b) => (
+                          <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button onClick={saveQuestionsToBank} className="w-full" disabled={savingToBank || !selectedBankId}>
+                      {savingToBank ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                      Save {questions.length} Questions
+                    </Button>
+                  </>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
         </Card>
 
         {/* Question Review */}
@@ -159,7 +238,7 @@ export default function ResultsPage() {
           })}
         </div>
 
-        <div className="mt-8 flex gap-4 justify-center">
+        <div className="mt-8 flex gap-4 justify-center flex-wrap">
           <Link to="/dashboard">
             <Button variant="outline" size="lg">Back to Dashboard</Button>
           </Link>
