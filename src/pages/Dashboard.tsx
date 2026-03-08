@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { GraduationCap, Plus, History, Trophy, LogOut, BookOpen, Clock, CheckCircle } from 'lucide-react';
+import { GraduationCap, Plus, History, Trophy, LogOut, BookOpen, Clock, CheckCircle, Library } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface TestRecord {
