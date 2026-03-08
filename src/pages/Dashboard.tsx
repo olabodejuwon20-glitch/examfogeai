@@ -60,10 +60,15 @@ export default function Dashboard() {
             <GraduationCap className="h-7 w-7 text-primary" />
             <span className="text-xl font-bold text-foreground">AutoExam</span>
           </Link>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
+            <Link to="/question-banks">
+              <Button variant="ghost" size="sm">
+                <Library className="h-4 w-4 mr-1" /> <span className="hidden sm:inline">Banks</span>
+              </Button>
+            </Link>
             <Link to="/leaderboard">
               <Button variant="ghost" size="sm">
-                <Trophy className="h-4 w-4 mr-1" /> Leaderboard
+                <Trophy className="h-4 w-4 mr-1" /> <span className="hidden sm:inline">Leaderboard</span>
               </Button>
             </Link>
             <span className="text-sm text-muted-foreground hidden md:inline">
