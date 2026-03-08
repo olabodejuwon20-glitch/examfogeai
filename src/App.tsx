@@ -10,6 +10,7 @@ import CreateTest from "./pages/CreateTest";
 import TestPage from "./pages/TestPage";
 import ResultsPage from "./pages/ResultsPage";
 import Leaderboard from "./pages/Leaderboard";
+import QuestionBank from "./pages/QuestionBank";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/test/:testId" element={<ProtectedRoute><TestPage /></ProtectedRoute>} />
             <Route path="/results/:testId" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
             <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
+            <Route path="/question-banks" element={<ProtectedRoute><QuestionBank /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

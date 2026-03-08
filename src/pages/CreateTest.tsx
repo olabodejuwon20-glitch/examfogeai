@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
+import { extractTextFromFile } from '@/lib/fileParser';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,26 +24,31 @@ export default function CreateTest() {
   const [format, setFormat] = useState('cbt');
   const [loading, setLoading] = useState(false);
   const [uploadMethod, setUploadMethod] = useState<'text' | 'file'>('text');
+  const [fileLoading, setFileLoading] = useState(false);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.type === 'text/plain') {
-      const text = await file.text();
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error('File is too large. Maximum 20MB.');
+      return;
+    }
+
+    setFileLoading(true);
+    try {
+      const text = await extractTextFromFile(file);
+      if (!text || text.trim().length < 20) {
+        toast.error('Could not extract enough text from this file. Try a different format.');
+        return;
+      }
       setContent(text);
       if (!title) setTitle(file.name.replace(/\.[^/.]+$/, ''));
-      toast.success('File loaded!');
-    } else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-      toast.info('PDF uploaded. Text will be extracted for question generation.');
-      const text = await file.text();
-      setContent(text);
-      if (!title) setTitle(file.name.replace(/\.[^/.]+$/, ''));
-    } else {
-      const text = await file.text();
-      setContent(text);
-      if (!title) setTitle(file.name.replace(/\.[^/.]+$/, ''));
-      toast.success('File loaded!');
+      toast.success(`Extracted ${text.length} characters from ${file.name}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to parse file. Try PDF, DOCX, or TXT.');
+    } finally {
+      setFileLoading(false);
     }
   };
 
@@ -62,13 +68,12 @@ export default function CreateTest() {
 
     setLoading(true);
     try {
-      // Create the test record
       const { data: test, error: testError } = await supabase
         .from('tests')
         .insert({
           user_id: user!.id,
           title: title.trim(),
-          source_content: content.trim(),
+          source_content: content.trim().substring(0, 50000),
           num_questions: numQuestions,
           duration_minutes: duration,
           question_format: format,
@@ -79,7 +84,6 @@ export default function CreateTest() {
 
       if (testError) throw testError;
 
-      // Call AI edge function to generate questions
       const { data: fnData, error: fnError } = await supabase.functions.invoke('generate-questions', {
         body: {
           testId: test.id,
@@ -117,7 +121,6 @@ export default function CreateTest() {
 
       <main className="container mx-auto px-4 py-8 max-w-2xl">
         <div className="space-y-6">
-          {/* Title */}
           <div className="space-y-2">
             <Label htmlFor="title" className="text-base font-semibold">Test Title</Label>
             <Input
@@ -129,7 +132,6 @@ export default function CreateTest() {
             />
           </div>
 
-          {/* Upload Method Toggle */}
           <div className="space-y-2">
             <Label className="text-base font-semibold">Content Source</Label>
             <div className="flex gap-2">
@@ -150,7 +152,6 @@ export default function CreateTest() {
             </div>
           </div>
 
-          {/* Content Input */}
           {uploadMethod === 'text' ? (
             <div className="space-y-2">
               <Label htmlFor="content">Study Material</Label>
@@ -165,23 +166,34 @@ export default function CreateTest() {
             </div>
           ) : (
             <Card className="p-8 border-dashed border-2 text-center">
-              <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground mb-3">
-                Upload PDF, Word, or text files
-              </p>
-              <Input
-                type="file"
-                accept=".txt,.pdf,.doc,.docx"
-                onChange={handleFileUpload}
-                className="max-w-xs mx-auto"
-              />
-              {content && (
-                <p className="text-sm text-success mt-3">✓ Content loaded ({content.length} characters)</p>
+              {fileLoading ? (
+                <>
+                  <Loader2 className="h-10 w-10 text-primary mx-auto mb-3 animate-spin" />
+                  <p className="text-sm text-muted-foreground">Extracting text from file...</p>
+                </>
+              ) : (
+                <>
+                  <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground mb-1">
+                    Upload PDF, Word (.docx), or text files
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Max 20MB • Text will be extracted automatically
+                  </p>
+                  <Input
+                    type="file"
+                    accept=".txt,.pdf,.docx"
+                    onChange={handleFileUpload}
+                    className="max-w-xs mx-auto"
+                  />
+                </>
+              )}
+              {content && !fileLoading && (
+                <p className="text-sm text-primary mt-3 font-medium">✓ Content loaded ({content.length} characters)</p>
               )}
             </Card>
           )}
 
-          {/* Settings */}
           <Card className="p-6 space-y-6">
             <h3 className="font-semibold text-foreground">Test Settings</h3>
             
@@ -227,7 +239,6 @@ export default function CreateTest() {
             </div>
           </Card>
 
-          {/* Generate Button */}
           <Button
             onClick={handleGenerate}
             disabled={loading || !content.trim() || !title.trim()}
