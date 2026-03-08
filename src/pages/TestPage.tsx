@@ -1,11 +1,11 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { ChevronLeft, ChevronRight, Clock, Flag, CheckCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Flag } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Question {
@@ -32,6 +32,11 @@ export default function TestPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [started, setStarted] = useState(false);
+
+  // Swipe gesture state
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+  const questionAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadTest();
@@ -69,7 +74,6 @@ export default function TestPage() {
 
   const selectAnswer = (questionId: string, answer: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: answer }));
-    // Auto advance after short delay
     setTimeout(() => {
       if (currentIndex < questions.length - 1) {
         setCurrentIndex((i) => i + 1);
@@ -103,7 +107,7 @@ export default function TestPage() {
       score,
       total_questions: questions.length,
       correct_answers: correct,
-      time_taken_seconds: questions.length > 0 ? (questions[0] as any).test?.duration_minutes * 60 - timeLeft : 0,
+      time_taken_seconds: 0,
       answers: answerDetails,
     });
 
@@ -124,6 +128,30 @@ export default function TestPage() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
+  // Swipe handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    const diff = touchStartX.current - touchEndX.current;
+    const minSwipeDistance = 50;
+
+    if (Math.abs(diff) < minSwipeDistance) return;
+
+    if (diff > 0 && currentIndex < questions.length - 1) {
+      // Swipe left → next
+      setCurrentIndex((i) => i + 1);
+    } else if (diff < 0 && currentIndex > 0) {
+      // Swipe right → previous
+      setCurrentIndex((i) => i - 1);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -140,8 +168,11 @@ export default function TestPage() {
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="max-w-md w-full p-8 text-center">
           <h1 className="text-2xl font-bold text-foreground mb-2">{testTitle}</h1>
-          <p className="text-muted-foreground mb-6">
+          <p className="text-muted-foreground mb-2">
             {questions.length} questions • {formatTime(timeLeft)} time limit
+          </p>
+          <p className="text-xs text-muted-foreground mb-6">
+            💡 Swipe left/right to navigate between questions
           </p>
           <Button size="lg" className="w-full h-14 text-lg font-semibold" onClick={() => setStarted(true)}>
             Start Test
@@ -165,7 +196,7 @@ export default function TestPage() {
           </span>
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">
-              {answeredCount}/{questions.length} answered
+              {answeredCount}/{questions.length}
             </span>
             <div className={`flex items-center gap-1 font-mono font-bold text-sm ${
               timeLeft < 60 ? 'text-destructive' : timeLeft < 300 ? 'text-warning' : 'text-foreground'
@@ -177,11 +208,16 @@ export default function TestPage() {
         </div>
       </div>
 
-      {/* Progress */}
       <Progress value={progress} className="h-1 rounded-none" />
 
-      {/* Question */}
-      <div className="flex-1 flex items-center justify-center p-4">
+      {/* Question area with swipe */}
+      <div
+        ref={questionAreaRef}
+        className="flex-1 flex items-center justify-center p-4 select-none"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
         <div className="w-full max-w-2xl">
           <p className="text-sm text-muted-foreground mb-2">
             Question {currentIndex + 1} of {questions.length}
@@ -229,16 +265,16 @@ export default function TestPage() {
             onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
             disabled={currentIndex === 0}
           >
-            <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+            <ChevronLeft className="h-4 w-4 mr-1" /> Prev
           </Button>
 
-          {/* Question dots for navigation */}
-          <div className="hidden md:flex gap-1 flex-wrap justify-center max-w-xs">
+          {/* Question dots - scrollable on mobile */}
+          <div className="flex gap-1 flex-wrap justify-center max-w-[200px] md:max-w-xs overflow-x-auto">
             {questions.map((q, i) => (
               <button
                 key={q.id}
                 onClick={() => setCurrentIndex(i)}
-                className={`w-7 h-7 rounded-md text-xs font-medium transition-colors ${
+                className={`w-6 h-6 md:w-7 md:h-7 rounded-md text-xs font-medium transition-colors flex-shrink-0 ${
                   i === currentIndex
                     ? 'bg-primary text-primary-foreground'
                     : answers[q.id]
@@ -253,7 +289,7 @@ export default function TestPage() {
 
           {currentIndex === questions.length - 1 ? (
             <Button onClick={handleSubmit} disabled={submitting} className="font-semibold">
-              <Flag className="h-4 w-4 mr-1" /> Submit Test
+              <Flag className="h-4 w-4 mr-1" /> Submit
             </Button>
           ) : (
             <Button
