@@ -281,6 +281,7 @@ export default function ResultsPage() {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </Card>
 
         {/* Question Review */}
