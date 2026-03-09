@@ -90,6 +90,102 @@ export default function ResultsPage() {
     setSavingToBank(false);
   };
 
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    const title = result.test?.title || 'Test Results';
+    const dateStr = new Date(result.completed_at).toLocaleDateString();
+
+    // Header
+    doc.setFontSize(20);
+    doc.text('AutoExam - Test Results', 14, 20);
+    doc.setFontSize(12);
+    doc.text(`Test: ${title}`, 14, 30);
+    doc.text(`Date: ${dateStr}`, 14, 37);
+    doc.text(`Score: ${score}% (${result.correct_answers}/${result.total_questions})`, 14, 44);
+    if (result.time_taken_seconds) {
+      const mins = Math.floor(result.time_taken_seconds / 60);
+      const secs = result.time_taken_seconds % 60;
+      doc.text(`Time: ${mins}m ${secs}s`, 14, 51);
+    }
+
+    doc.setDrawColor(200);
+    doc.line(14, 55, 196, 55);
+
+    // Questions table
+    const tableData = questions.map((q) => {
+      const answer = answerMap[q.id];
+      const userAns = answer?.user_answer || '-';
+      const status = answer?.is_correct ? '✓' : '✗';
+      return [
+        String(q.question_number),
+        q.question_text.substring(0, 80) + (q.question_text.length > 80 ? '...' : ''),
+        userAns,
+        q.correct_answer,
+        status,
+      ];
+    });
+
+    autoTable(doc, {
+      startY: 60,
+      head: [['#', 'Question', 'Your Answer', 'Correct', 'Result']],
+      body: tableData,
+      columnStyles: {
+        0: { cellWidth: 10 },
+        1: { cellWidth: 100 },
+        2: { cellWidth: 25 },
+        3: { cellWidth: 25 },
+        4: { cellWidth: 20 },
+      },
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [59, 91, 219] },
+    });
+
+    // Detailed review on new pages
+    let yPos = (doc as any).lastAutoTable?.finalY + 15 || 80;
+
+    questions.forEach((q) => {
+      const answer = answerMap[q.id];
+      const needed = 70;
+      if (yPos + needed > 280) {
+        doc.addPage();
+        yPos = 20;
+      }
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Q${q.question_number}. ${q.question_text}`, 14, yPos, { maxWidth: 180 });
+      const lines = doc.splitTextToSize(`Q${q.question_number}. ${q.question_text}`, 180);
+      yPos += lines.length * 5 + 3;
+
+      doc.setFont('helvetica', 'normal');
+      ['A', 'B', 'C', 'D'].forEach((letter) => {
+        const optText = q[`option_${letter.toLowerCase()}` as keyof Question] as string;
+        const isCorrect = q.correct_answer === letter;
+        const isUser = answer?.user_answer === letter;
+        let prefix = `  ${letter}. `;
+        if (isCorrect) prefix += '✓ ';
+        if (isUser && !answer?.is_correct) prefix += '✗ ';
+        doc.text(prefix + optText, 16, yPos, { maxWidth: 175 });
+        const optLines = doc.splitTextToSize(prefix + optText, 175);
+        yPos += optLines.length * 5 + 1;
+      });
+
+      if (q.explanation) {
+        doc.setFontSize(8);
+        doc.setTextColor(100);
+        doc.text(`Explanation: ${q.explanation}`, 16, yPos + 2, { maxWidth: 175 });
+        const expLines = doc.splitTextToSize(`Explanation: ${q.explanation}`, 175);
+        yPos += expLines.length * 4 + 6;
+        doc.setTextColor(0);
+      }
+
+      yPos += 5;
+    });
+
+    doc.save(`${title.replace(/\s+/g, '_')}_Results.pdf`);
+    toast.success('PDF downloaded!');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
