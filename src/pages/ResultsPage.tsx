@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { GraduationCap, ArrowLeft, CheckCircle, XCircle, Trophy, BookmarkPlus, Loader2 } from 'lucide-react';
+import { GraduationCap, ArrowLeft, CheckCircle, XCircle, Trophy, BookmarkPlus, Loader2, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface QuestionResult {
   question_id: string;
