@@ -189,6 +189,21 @@ export default function TestPage() {
     );
   }
 
+  if (generating) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="max-w-md w-full p-8 text-center">
+          <div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-foreground mb-2">Generating Questions...</h2>
+          <p className="text-muted-foreground text-sm mb-1">
+            AI is crafting your test questions. This usually takes 10-30 seconds.
+          </p>
+          <p className="text-xs text-muted-foreground">You'll be notified when ready.</p>
+        </Card>
+      </div>
+    );
+  }
+
   if (!started) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
