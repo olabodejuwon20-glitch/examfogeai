@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { toast } from 'sonner';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { ChevronLeft, ChevronRight, Clock, Flag } from 'lucide-react';
-import { toast } from 'sonner';
 
 interface Question {
   id: string;
@@ -30,6 +30,7 @@ export default function TestPage() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [testTitle, setTestTitle] = useState('');
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [started, setStarted] = useState(false);
 
@@ -37,9 +38,13 @@ export default function TestPage() {
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
   const questionAreaRef = useRef<HTMLDivElement>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     loadTest();
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
   }, [testId]);
 
   useEffect(() => {
@@ -62,6 +67,27 @@ export default function TestPage() {
     if (!test) { navigate('/dashboard'); return; }
     setTestTitle(test.title);
     setTimeLeft(test.duration_minutes * 60);
+
+    if (test.status === 'generating') {
+      setGenerating(true);
+      setLoading(false);
+      // Poll every 3 seconds until ready
+      pollRef.current = setInterval(async () => {
+        const { data: updated } = await supabase.from('tests').select('status').eq('id', testId).single();
+        if (updated && updated.status === 'ready') {
+          if (pollRef.current) clearInterval(pollRef.current);
+          setGenerating(false);
+          const { data: qs } = await supabase
+            .from('questions')
+            .select('*')
+            .eq('test_id', testId)
+            .order('question_number');
+          if (qs) setQuestions(qs);
+          toast.success('Questions are ready! Start your test.');
+        }
+      }, 3000);
+      return;
+    }
 
     const { data: qs } = await supabase
       .from('questions')
@@ -159,6 +185,21 @@ export default function TestPage() {
           <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
           <p className="text-muted-foreground">Loading test...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (generating) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="max-w-md w-full p-8 text-center">
+          <div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-foreground mb-2">Generating Questions...</h2>
+          <p className="text-muted-foreground text-sm mb-1">
+            AI is crafting your test questions. This usually takes 10-30 seconds.
+          </p>
+          <p className="text-xs text-muted-foreground">You'll be notified when ready.</p>
+        </Card>
       </div>
     );
   }
