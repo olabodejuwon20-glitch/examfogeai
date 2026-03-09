@@ -241,13 +241,16 @@ export default function ResultsPage() {
             {result.correct_answers} of {result.total_questions} correct
           </p>
 
-          {/* Save to Bank */}
-          <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
-                <BookmarkPlus className="h-4 w-4 mr-2" /> Save to Question Bank
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-3 justify-center flex-wrap">
+            <Button variant="outline" size="sm" onClick={exportToPDF}>
+              <Download className="h-4 w-4 mr-2" /> Export PDF
+            </Button>
+            <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <BookmarkPlus className="h-4 w-4 mr-2" /> Save to Question Bank
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Save Questions to Bank</DialogTitle>
