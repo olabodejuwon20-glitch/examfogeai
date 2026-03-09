@@ -84,21 +84,22 @@ export default function CreateTest() {
 
       if (testError) throw testError;
 
-      const { data: fnData, error: fnError } = await supabase.functions.invoke('generate-questions', {
+      // Navigate immediately — test page will poll for readiness
+      toast.info('Generating questions... You\'ll be notified when ready.');
+      navigate(`/test/${test.id}`);
+
+      // Fire generation in background (don't await)
+      supabase.functions.invoke('generate-questions', {
         body: {
           testId: test.id,
           content: content.trim(),
           numQuestions,
         },
+      }).catch((err) => {
+        console.error('Background generation failed:', err);
       });
-
-      if (fnError) throw fnError;
-
-      toast.success('Questions generated! Your test is ready.');
-      navigate(`/test/${test.id}`);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to generate questions');
-    } finally {
+      toast.error(err.message || 'Failed to create test');
       setLoading(false);
     }
   };
