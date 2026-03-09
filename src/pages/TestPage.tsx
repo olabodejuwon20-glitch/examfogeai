@@ -30,6 +30,7 @@ export default function TestPage() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [testTitle, setTestTitle] = useState('');
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [started, setStarted] = useState(false);
 
@@ -37,9 +38,13 @@ export default function TestPage() {
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
   const questionAreaRef = useRef<HTMLDivElement>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     loadTest();
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
   }, [testId]);
 
   useEffect(() => {
@@ -62,6 +67,27 @@ export default function TestPage() {
     if (!test) { navigate('/dashboard'); return; }
     setTestTitle(test.title);
     setTimeLeft(test.duration_minutes * 60);
+
+    if (test.status === 'generating') {
+      setGenerating(true);
+      setLoading(false);
+      // Poll every 3 seconds until ready
+      pollRef.current = setInterval(async () => {
+        const { data: updated } = await supabase.from('tests').select('status').eq('id', testId).single();
+        if (updated && updated.status === 'ready') {
+          if (pollRef.current) clearInterval(pollRef.current);
+          setGenerating(false);
+          const { data: qs } = await supabase
+            .from('questions')
+            .select('*')
+            .eq('test_id', testId)
+            .order('question_number');
+          if (qs) setQuestions(qs);
+          toast.success('Questions are ready! Start your test.');
+        }
+      }, 3000);
+      return;
+    }
 
     const { data: qs } = await supabase
       .from('questions')
