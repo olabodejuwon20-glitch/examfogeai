@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { ChevronLeft, ChevronRight, Clock, Flag } from 'lucide-react';
-import { toast } from 'sonner';
 
 interface Question {
   id: string;
