@@ -13,6 +13,7 @@ import TestPage from "./pages/TestPage";
 import ResultsPage from "./pages/ResultsPage";
 import Leaderboard from "./pages/Leaderboard";
 import QuestionBank from "./pages/QuestionBank";
+import BuyCredits from "./pages/BuyCredits";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,26 +42,28 @@ const App = () => {
   }, []);
 
   return (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            <Route path="/" element={<AuthRoute><AuthPage /></AuthRoute>} />
-            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/create-test" element={<ProtectedRoute><CreateTest /></ProtectedRoute>} />
-            <Route path="/test/:testId" element={<ProtectedRoute><TestPage /></ProtectedRoute>} />
-            <Route path="/results/:testId" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
-            <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
-            <Route path="/question-banks" element={<ProtectedRoute><QuestionBank /></ProtectedRoute>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              <Route path="/" element={<AuthRoute><AuthPage /></AuthRoute>} />
+              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/create-test" element={<ProtectedRoute><CreateTest /></ProtectedRoute>} />
+              <Route path="/test/:testId" element={<ProtectedRoute><TestPage /></ProtectedRoute>} />
+              <Route path="/results/:testId" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
+              <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
+              <Route path="/question-banks" element={<ProtectedRoute><QuestionBank /></ProtectedRoute>} />
+              {/* ✅ NEW: Credits page */}
+              <Route path="/credits" element={<ProtectedRoute><BuyCredits /></ProtectedRoute>} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
   );
 };
 
