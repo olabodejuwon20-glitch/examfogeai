@@ -51,6 +51,7 @@ export default function ResultsPage() {
 
   useEffect(() => {
     loadResults();
+    showInterstitialAd();
   }, [testId]);
 
   const loadResults = async () => {
