@@ -199,6 +199,10 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+        {/* Web Ad */}
+        <div className="mt-8">
+          <AdSenseAd adSlot="XXXXXXXXXX" className="text-center" />
+        </div>
       </main>
     </div>
   );

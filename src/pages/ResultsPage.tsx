@@ -343,7 +343,12 @@ export default function ResultsPage() {
           })}
         </div>
 
-        <div className="mt-8 flex gap-4 justify-center flex-wrap">
+        {/* Web Ad */}
+        <div className="my-8">
+          <AdSenseAd adSlot="XXXXXXXXXX" className="text-center" />
+        </div>
+
+        <div className="mt-4 flex gap-4 justify-center flex-wrap pb-8">
           <Link to="/dashboard">
             <Button variant="outline" size="lg">Back to Dashboard</Button>
           </Link>
