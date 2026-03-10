@@ -10,6 +10,8 @@ import { GraduationCap, ArrowLeft, CheckCircle, XCircle, Trophy, BookmarkPlus, L
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { showInterstitialAd } from '@/lib/admob';
+import AdSenseAd from '@/components/AdSenseAd';
 
 interface QuestionResult {
   question_id: string;
