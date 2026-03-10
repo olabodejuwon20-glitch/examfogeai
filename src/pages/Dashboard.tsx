@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { GraduationCap, Plus, History, Trophy, LogOut, BookOpen, Clock, CheckCircle, Library } from 'lucide-react';
 import { toast } from 'sonner';
+import { showBannerAd, hideBannerAd } from '@/lib/admob';
+import AdSenseAd from '@/components/AdSenseAd';
 
 interface TestRecord {
   id: string;
@@ -34,6 +36,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadData();
+    showBannerAd();
+    return () => { hideBannerAd(); };
   }, []);
 
   const loadData = async () => {
@@ -195,6 +199,10 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+        {/* Web Ad */}
+        <div className="mt-8">
+          <AdSenseAd adSlot="XXXXXXXXXX" className="text-center" />
+        </div>
       </main>
     </div>
   );
