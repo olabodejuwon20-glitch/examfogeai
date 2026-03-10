@@ -3,6 +3,19 @@
 // 1. ADD these imports:
 // import { useCredits } from '@/hooks/useCredits';
 // import CreditsBadge from '@/components/credits/CreditsBadge';
+<Link to="/leaderboard">
+  <Button variant="ghost" size="sm">
+    <Trophy className="h-4 w-4 mr-1" />
+    <span className="hidden sm:inline">Leaderboard</span>
+  </Button>
+</Link>
+
+<Link to="/credits">
+  <Button variant="ghost" size="sm">
+    <Zap className="h-4 w-4 mr-1" />
+    <span className="hidden sm:inline">Credits</span>
+  </Button>
+</Link>
 
 // 2. ADD inside Dashboard component:
 // const { checkDailyCredits, isAdFree } = useCredits();
