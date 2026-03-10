@@ -36,6 +36,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadData();
+    showBannerAd();
+    return () => { hideBannerAd(); };
   }, []);
 
   const loadData = async () => {
