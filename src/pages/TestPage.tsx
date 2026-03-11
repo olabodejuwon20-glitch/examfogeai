@@ -111,33 +111,17 @@ export default function TestPage() {
     if (submitting) return;
     setSubmitting(true);
 
-    let correct = 0;
-    const answerDetails = questions.map((q) => {
-      const userAnswer = answers[q.id] || '';
-      const isCorrect = userAnswer === q.correct_answer;
-      if (isCorrect) correct++;
-      return {
-        question_id: q.id,
-        question_number: q.question_number,
-        user_answer: userAnswer,
-        correct_answer: q.correct_answer,
-        is_correct: isCorrect,
-      };
+    // Build a simple map of question_id -> user_answer
+    const userAnswers: Record<string, string> = {};
+    questions.forEach((q) => {
+      userAnswers[q.id] = answers[q.id] || '';
     });
 
-    const score = (correct / questions.length) * 100;
-
-    const { error } = await supabase.from('test_results').insert({
-      test_id: testId,
-      user_id: user!.id,
-      score,
-      total_questions: questions.length,
-      correct_answers: correct,
-      time_taken_seconds: 0,
-      answers: answerDetails,
+    // Submit answers server-side for secure score calculation
+    const { error } = await supabase.rpc('submit_test_answers', {
+      p_test_id: testId,
+      p_user_answers: userAnswers,
     });
-
-    await supabase.from('tests').update({ status: 'completed' }).eq('id', testId);
 
     if (error) {
       toast.error('Failed to save results');
@@ -146,7 +130,7 @@ export default function TestPage() {
     }
 
     navigate(`/results/${testId}`);
-  }, [submitting, questions, answers, testId, user, timeLeft, navigate]);
+  }, [submitting, questions, answers, testId, navigate]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
