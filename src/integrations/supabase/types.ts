@@ -336,6 +336,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      submit_test_answers: {
+        Args: { p_test_id: string; p_user_answers: Json }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
