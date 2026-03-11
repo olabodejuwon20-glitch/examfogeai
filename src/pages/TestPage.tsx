@@ -87,11 +87,8 @@ export default function TestPage() {
     }
 
     const { data: qs } = await supabase
-      .from('questions')
-      .select('*')
-      .eq('test_id', testId)
-      .order('question_number');
-    if (qs) setQuestions(qs);
+      .rpc('get_test_questions', { p_test_id: testId });
+    if (qs) setQuestions(qs as any);
     setLoading(false);
   };
 

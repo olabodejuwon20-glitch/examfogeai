@@ -158,6 +158,15 @@ serve(async (req) => {
       });
     }
 
+    // --- Enforce credit deduction before AI generation ---
+    const { error: creditError } = await supabase.rpc('deduct_credit', { p_user_id: userId });
+    if (creditError) {
+      return new Response(JSON.stringify({ error: 'Insufficient credits' }), {
+        status: 402,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
