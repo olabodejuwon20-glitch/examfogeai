@@ -14,6 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      credit_transactions: {
+        Row: {
+          amount: number
+          created_at: string | null
+          description: string | null
+          id: string
+          payment_ref: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          payment_ref?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          payment_ref?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      credits_wallet: {
+        Row: {
+          ads_free_until: string | null
+          balance: number
+          created_at: string | null
+          id: string
+          last_daily_credit: string | null
+          total_purchased: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          ads_free_until?: string | null
+          balance?: number
+          created_at?: string | null
+          id?: string
+          last_daily_credit?: string | null
+          total_purchased?: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          ads_free_until?: string | null
+          balance?: number
+          created_at?: string | null
+          id?: string
+          last_daily_credit?: string | null
+          total_purchased?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -259,7 +322,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      add_credits: {
+        Args: { p_credits: number; p_user_id: string }
+        Returns: undefined
+      }
+      deduct_credit: { Args: { p_user_id: string }; Returns: undefined }
+      get_leaderboard: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: {
+          avg_score: number
+          display_name: string
+          total_tests: number
+          user_id: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
