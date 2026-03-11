@@ -1,118 +1,39 @@
+# Dashboard.tsx Build Error — Root Cause & Fix
+
+## What Happened
+
+The `src/pages/Dashboard.tsx` file got **corrupted during the last edit**. The new updated version of the component was inserted, but the **old version was not fully removed**. The result is that **two copies of the component body are concatenated** in the same file.
+
+Specifically:
+
+- **Lines 1–392**: The correct, updated Dashboard component (with credits balance, realtime subscription, low-credits warning, `Zap` icon, branding fix to "ExamForge", etc.)
+- **Lines 393–509**: Leftover **duplicate JSX** from the old version — starts mid-tag with `Name="text-muted-foreground">` which is invalid JSX
+
+This is why there are 50+ TypeScript/JSX errors — the parser sees broken tags, unclosed elements, and duplicate declarations after the component already closed with `}` on line 392.
+
+## What Changed (Summary of All Recent Edits)
 
 
-# Credits System & Monetization Plan
+| File                          | Change                                                                                               | Impact                            |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------- |
+| `Dashboard.tsx`               | Added credits balance display, realtime subscription, low-credits warning card, "ExamForge" branding | **BROKEN** — old code not removed |
+| `CreateTest.tsx`              | Added credit check before generation, optimistic navigation                                          | Working                           |
+| `TestPage.tsx`                | Added polling for "generating" state                                                                 | Working                           |
+| `generate-questions/index.ts` | Parallel batching for faster AI generation                                                           | Working                           |
+| `App.tsx`                     | Added `/credits` route for BuyCredits page                                                           | Working                           |
+| `src/lib/credits.ts`          | Daily credits + loyalty bonus logic                                                                  | New file                          |
+| `src/components/credits/*`    | OutOfCreditsModal + CreditsBadge                                                                     | New files                         |
+| `src/pages/BuyCredits.tsx`    | Credits purchase page with Flutterwave                                                               | New file                          |
+| Database migration            | `credits_wallet` + `credit_transactions` tables, RLS, functions                                      | Applied                           |
 
-## Overview
-Full credits-based monetization system: wallet, transactions, daily rewards, loyalty bonuses, credit gating on AI generation, out-of-credits modal, buy credits page with Flutterwave payments, ad-free rewards, navbar badge, and transaction history.
 
----
+## The Fix
 
-## Phase 1: Database (Migrations)
+**Delete lines 393–509** from `src/pages/Dashboard.tsx`. The complete, correct component ends at line 392 with the closing `}`. Everything after that is leftover duplicate code that must be removed.
 
-### Migration 1: Tables + Functions + Trigger
-
-**`credits_wallet`** table:
-- `id` uuid PK, `user_id` uuid unique (not FK to auth.users — follows project pattern), `balance` int default 5, `total_purchased` int default 0, `ads_free_until` timestamptz nullable, `last_daily_credit` timestamptz nullable, `created_at`/`updated_at` timestamptz defaults
-- RLS: users can SELECT and UPDATE their own row only
-- Enable realtime for CreditsBadge live updates
-
-**`credit_transactions`** table:
-- `id` uuid PK, `user_id` uuid, `amount` int, `type` text, `description` text, `payment_ref` text nullable, `created_at` timestamptz
-- RLS: users can SELECT own rows, INSERT own rows
-
-**Database functions:**
-- `add_credits(p_user_id uuid, p_credits int)` — upserts wallet balance, updates `updated_at`
-- `deduct_credit(p_user_id uuid)` — checks balance >= 1, subtracts 1, raises exception if insufficient
-
-**Trigger:** Extend existing `handle_new_user()` function to also insert a `credits_wallet` row with balance 5 for new signups. (The trigger `on_auth_user_created` already exists — we just alter the function body.)
-
----
-
-## Phase 2: Credits Logic (`src/lib/credits.ts`)
-
-- **`checkDailyCredits(userId)`** — fetch `last_daily_credit`, if null or >24h ago: call `add_credits` RPC with 2, update `last_daily_credit`, log transaction, show toast
-- **`checkLoyaltyBonus(userId, totalGenerations)`** — if divisible by 10: call `add_credits` with 1, log transaction, show celebration toast
-- **`getCreditsBalance(userId)`** — fetch balance from `credits_wallet`
-- **`deductCredit(userId)`** — call `deduct_credit` RPC
-
-Call `checkDailyCredits` in `Dashboard.tsx` on mount (after auth).
-
----
-
-## Phase 3: Credit Gating in CreateTest
-
-Before generation in `handleGenerate()`:
-1. Fetch balance from `credits_wallet`
-2. If balance < 1 → show `OutOfCreditsModal` instead of generating
-3. If balance >= 1 → call `deduct_credit` RPC, proceed with generation, then call `checkLoyaltyBonus`
-
----
-
-## Phase 4: UI Components
-
-### `OutOfCreditsModal` (`src/components/credits/OutOfCreditsModal.tsx`)
-- Friendly dialog: "You're out of credits"
-- Three options: Watch ad (rewarded ad), Buy credits (navigate to `/buy-credits`), Come back tomorrow note
-- Dark theme, no red/warning colors
-
-### `BuyCredits` page (`src/pages/BuyCredits.tsx`)
-- Show current balance (realtime)
-- 3 pack cards: Starter ($1.99/20), Value ($4.99/75 "Most Popular"), Power ($9.99/200)
-- Each shows price, credits, cost/credit, buy button
-- Ad-free banner: "Buying any pack removes ads for 30 days"
-- "Watch Ad Instead" subtle option at bottom
-- Wire buy buttons to Flutterwave inline payment (install `flutterwave-react-v3`)
-- On success: call `add_credits`, update `total_purchased`, set `ads_free_until` +30 days, log transaction, toast
-
-### `CreditsBadge` (`src/components/credits/CreditsBadge.tsx`)
-- Small pill in navbar showing balance with lightning bolt icon
-- Realtime subscription to `credits_wallet` changes
-- Color: green (3+), yellow (1-2), red (0)
-- Clickable → navigate to `/buy-credits`
-- Add to Dashboard header
-
-### `CreditsHistory` page (`src/pages/CreditsHistory.tsx`)
-- List all transactions from `credit_transactions` ordered by date desc
-- Colored icons: green for credits in, red for usage
-- Summary at top: total earned, total used, current balance
-
----
-
-## Phase 5: Ad-Free Logic
-
-Update `src/lib/admob.ts` — before showing banner/interstitial, check `ads_free_until` from wallet. If in the future, skip ad.
-
-Update `AdSenseAd.tsx` — accept an `adsFreeUntil` prop or check via a shared hook. Hide if ad-free period active.
-
----
-
-## Phase 6: Routing
-
-Add routes in `App.tsx`:
-- `/buy-credits` → `BuyCredits`
-- `/credits-history` → `CreditsHistory`
-
----
-
-## New Files
-- `src/lib/credits.ts`
-- `src/components/credits/OutOfCreditsModal.tsx`
-- `src/components/credits/CreditsBadge.tsx`
-- `src/pages/BuyCredits.tsx`
-- `src/pages/CreditsHistory.tsx`
-
-## Modified Files
-- `supabase/functions/generate-questions/index.ts` (no change needed — gating is client-side)
-- `src/pages/CreateTest.tsx` (credit check before generation)
-- `src/pages/Dashboard.tsx` (daily credits check, CreditsBadge in header)
-- `src/lib/admob.ts` (ad-free check)
-- `src/components/AdSenseAd.tsx` (ad-free check)
-- `src/App.tsx` (new routes)
-- Database migration for tables, functions, trigger update
-
-## Dependencies to Install
-- `flutterwave-react-v3` for payment integration
-
-## Note on Flutterwave
-Placeholder public key will be used. You will need to replace it with your real Flutterwave public key before going live.
-
+No other files need changes — this is the only broken file causing all the build errors.  
+  
+OTHER ISSUES I HAVE IS THAT WHEN NEW USERS SIGN IN THEY IMMEDIATELY SEE A PREGENRATED CONTENT OF ANOTHER USERS   
+  
+ALSO GIVE ME PLAN ON HOW TO GO ABOUT THE LEADERBOARD FEATURE IT IS NOT YET SHOWING THE CURRENT LEADER AND I THINK IT IS BECUASE WE DIDI NOT SET THE RULES OF HOW IT WILL GO BECAUSE IF WE SET THE RULE TO BE THE  HIGHEST SCORER , SINCE WE ARE NOT THE ONE THAT GAVE OUT THE QUESTION , SOO USERS CAN JUST BE DOING SIMPLE QUESTIONS LIKE  2+2 =4 AND TOP THE LADDER JUST BY SOLVING SUCH QUESTION WHY THERE IS SOMEONE THTA IS DOING COMPLEX CHEMISTRY BUT DUE TO THE NATURE OF THE QUESTION THE PERSON WAS NOT ABLE TO TOP THE LADDER WHICH  IS UNFAIR   
+SOO HAS A SENIOR DEVELOPER SUGESST  SOLUTIONS TO THIS 
