@@ -126,9 +126,8 @@ export default function BuyCredits() {
     if (data) {
       setBalance(data.balance);
     } else {
-      // Create wallet if doesn't exist
-      await supabase.from('credits_wallet').insert({ user_id: user!.id, balance: 5 });
-      setBalance(5);
+      // Wallet is created server-side by handle_new_user trigger
+      setBalance(0);
     }
     setLoadingBalance(false);
   };

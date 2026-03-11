@@ -322,10 +322,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      add_credits: {
-        Args: { p_credits: number; p_user_id: string }
-        Returns: undefined
-      }
+      add_credits:
+        | { Args: { p_credits: number; p_user_id: string }; Returns: undefined }
+        | {
+            Args: {
+              p_credits: number
+              p_description?: string
+              p_payment_ref?: string
+              p_type?: string
+              p_user_id: string
+            }
+            Returns: undefined
+          }
       deduct_credit: { Args: { p_user_id: string }; Returns: undefined }
       get_leaderboard: {
         Args: { p_from?: string; p_to?: string }

@@ -121,6 +121,26 @@ serve(async (req) => {
 
     const { testId, content, numQuestions } = await req.json();
 
+    // --- Input validation ---
+    if (!testId || typeof testId !== 'string') {
+      return new Response(JSON.stringify({ error: 'Invalid testId' }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!Number.isInteger(numQuestions) || numQuestions < 1 || numQuestions > 50) {
+      return new Response(JSON.stringify({ error: 'numQuestions must be between 1 and 50' }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (typeof content !== 'string' || content.length < 50 || content.length > 100000) {
+      return new Response(JSON.stringify({ error: 'content must be between 50 and 100,000 characters' }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Use service role client for DB operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
