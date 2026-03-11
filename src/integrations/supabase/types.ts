@@ -344,6 +344,20 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_test_questions: {
+        Args: { p_test_id: string }
+        Returns: {
+          explanation: string
+          id: string
+          option_a: string
+          option_b: string
+          option_c: string
+          option_d: string
+          question_number: number
+          question_text: string
+          test_id: string
+        }[]
+      }
       submit_test_answers: {
         Args: { p_test_id: string; p_user_answers: Json }
         Returns: Json
