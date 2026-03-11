@@ -84,13 +84,8 @@ export default function Dashboard() {
     if (walletRes.data) {
       setCredits(walletRes.data.balance);
     } else {
-      // Auto-create wallet if missing
-      const { data } = await supabase
-        .from('credits_wallet')
-        .insert({ user_id: user.id, balance: 5 })
-        .select('balance')
-        .single();
-      if (data) setCredits(data.balance);
+      // Wallet is created server-side by handle_new_user trigger
+      setCredits(0);
     }
 
     setLoading(false);
