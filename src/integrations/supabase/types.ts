@@ -77,6 +77,66 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_transactions: {
+        Row: {
+          amount: number
+          created_at: string | null
+          credits: number
+          currency: string
+          customer_email: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          flw_ref: string | null
+          flw_tx_id: string | null
+          grants_hub_access: boolean | null
+          id: string
+          package_name: string
+          payment_method: string | null
+          status: string
+          tx_ref: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          credits: number
+          currency?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          flw_ref?: string | null
+          flw_tx_id?: string | null
+          grants_hub_access?: boolean | null
+          id?: string
+          package_name: string
+          payment_method?: string | null
+          status?: string
+          tx_ref: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          credits?: number
+          currency?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          flw_ref?: string | null
+          flw_tx_id?: string | null
+          grants_hub_access?: boolean | null
+          id?: string
+          package_name?: string
+          payment_method?: string | null
+          status?: string
+          tx_ref?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -317,6 +377,42 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_logs: {
+        Row: {
+          created_at: string | null
+          error: string | null
+          event_type: string | null
+          id: string
+          payload: Json | null
+          processed_at: string | null
+          provider: string
+          status: string | null
+          tx_ref: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error?: string | null
+          event_type?: string | null
+          id?: string
+          payload?: Json | null
+          processed_at?: string | null
+          provider?: string
+          status?: string | null
+          tx_ref?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error?: string | null
+          event_type?: string | null
+          id?: string
+          payload?: Json | null
+          processed_at?: string | null
+          provider?: string
+          status?: string | null
+          tx_ref?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -335,6 +431,18 @@ export type Database = {
             Returns: undefined
           }
       deduct_credit: { Args: { p_user_id: string }; Returns: undefined }
+      fulfil_payment: {
+        Args: {
+          p_amount: number
+          p_currency: string
+          p_flw_ref: string
+          p_flw_tx_id: string
+          p_method: string
+          p_status: string
+          p_tx_ref: string
+        }
+        Returns: Json
+      }
       get_leaderboard: {
         Args: { p_from?: string; p_to?: string }
         Returns: {
@@ -357,6 +465,10 @@ export type Database = {
           question_text: string
           test_id: string
         }[]
+      }
+      grant_hub_access: {
+        Args: { p_credits: number; p_user_id: string }
+        Returns: undefined
       }
       submit_test_answers: {
         Args: { p_test_id: string; p_user_answers: Json }
