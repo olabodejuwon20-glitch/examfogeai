@@ -1,24 +1,162 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { GraduationCap, ArrowLeft, Zap, Star, Crown, CheckCircle, Clock, History } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import {
+  GraduationCap, ArrowLeft, Zap, Star, Crown, Gem,
+  CheckCircle, Clock, History, Shield, Lock, Rocket,
+  PartyPopper, ArrowRight,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
+/* ─── Flutterwave types ──────────────────────────────── */
+declare global {
+  interface Window {
+    FlutterwaveCheckout: (config: Record<string, unknown>) => { close: () => void };
+  }
+}
+
+/* ─── Currency helpers ───────────────────────────────── */
+const RATE_TABLE: Record<string, { symbol: string; rate: number }> = {
+  NGN: { symbol: '₦', rate: 1 },
+  GHS: { symbol: 'GH₵', rate: 0.008 },
+  KES: { symbol: 'KSh', rate: 0.09 },
+  ZAR: { symbol: 'R', rate: 0.012 },
+  UGX: { symbol: 'USh', rate: 2.5 },
+  TZS: { symbol: 'TSh', rate: 1.7 },
+};
+
+const BASE_PRICE_PER_CREDIT = 35; // NGN
+
+function detectCurrency(): string {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+    if (tz.startsWith('Africa/Lagos') || tz.startsWith('Africa/Abuja')) return 'NGN';
+    if (tz.startsWith('Africa/Accra')) return 'GHS';
+    if (tz.startsWith('Africa/Nairobi')) return 'KES';
+    if (tz.startsWith('Africa/Johannesburg') || tz.startsWith('Africa/Cape_Town')) return 'ZAR';
+    if (tz.startsWith('Africa/Kampala')) return 'UGX';
+    if (tz.startsWith('Africa/Dar_es_Salaam')) return 'TZS';
+  } catch { /* fallback */ }
+  return 'NGN';
+}
+
+function convertPrice(ngnAmount: number, currency: string): number {
+  const info = RATE_TABLE[currency] || RATE_TABLE.NGN;
+  return Math.ceil(ngnAmount * info.rate);
+}
+
+function formatPrice(amount: number, currency: string): string {
+  const info = RATE_TABLE[currency] || RATE_TABLE.NGN;
+  return `${info.symbol}${amount.toLocaleString()}`;
+}
+
+/* ─── Packages ───────────────────────────────────────── */
 interface CreditPack {
   id: string;
   name: string;
-  price: number;
-  credits: number;
-  perCredit: string;
+  baseCredits: number;
+  bonusCredits: number;
+  totalCredits: number;
   popular: boolean;
   icon: React.ReactNode;
   features: string[];
   color: string;
 }
 
+const PACKS: CreditPack[] = [
+  {
+    id: 'starter',
+    name: 'Starter',
+    baseCredits: 10,
+    bonusCredits: 0,
+    totalCredits: 10,
+    popular: false,
+    icon: <Zap className="h-5 w-5" />,
+    color: 'border-border',
+    features: [
+      '10 AI test generations',
+      'Unlocks Community Hub',
+      'PDF & JSON export',
+      'Credits never expire',
+    ],
+  },
+  {
+    id: 'value',
+    name: 'Value',
+    baseCredits: 30,
+    bonusCredits: 5,
+    totalCredits: 35,
+    popular: true,
+    icon: <Star className="h-5 w-5" />,
+    color: 'border-primary',
+    features: [
+      '30 + 5 bonus credits',
+      'Unlocks Community Hub',
+      'All export formats',
+      '30 days ad-free ✨',
+      'Credits never expire',
+    ],
+  },
+  {
+    id: 'power',
+    name: 'Power',
+    baseCredits: 60,
+    bonusCredits: 15,
+    totalCredits: 75,
+    popular: false,
+    icon: <Crown className="h-5 w-5" />,
+    color: 'border-amber-500/50',
+    features: [
+      '60 + 15 bonus credits',
+      'Unlocks Community Hub',
+      'All export formats',
+      '30 days ad-free ✨',
+      'Priority AI processing',
+      'Credits never expire',
+    ],
+  },
+  {
+    id: 'mega',
+    name: 'Mega',
+    baseCredits: 100,
+    bonusCredits: 30,
+    totalCredits: 130,
+    popular: false,
+    icon: <Gem className="h-5 w-5" />,
+    color: 'border-purple-500/50',
+    features: [
+      '100 + 30 bonus credits',
+      'Unlocks Community Hub',
+      'All export formats',
+      '30 days ad-free ✨',
+      'Priority AI processing',
+      'Team sharing',
+      'Credits never expire',
+    ],
+  },
+];
+
+/* ─── Flutterwave script loader ──────────────────────── */
+function loadFlutterwave(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (window.FlutterwaveCheckout) {
+      resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.flutterwave.com/v3.js';
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load Flutterwave'));
+    document.head.appendChild(script);
+  });
+}
+
+/* ─── Transaction helpers ────────────────────────────── */
 interface Transaction {
   id: string;
   amount: number;
@@ -27,90 +165,33 @@ interface Transaction {
   created_at: string;
 }
 
-const PACKS: CreditPack[] = [
-  {
-    id: 'starter',
-    name: 'Starter',
-    price: 1.99,
-    credits: 20,
-    perCredit: '$0.10',
-    popular: false,
-    icon: <Zap className="h-5 w-5" />,
-    color: 'border-border',
-    features: [
-      '20 AI question generations',
-      'Up to 50 questions each',
-      'PDF & JSON export',
-      'Credits never expire',
-    ],
-  },
-  {
-    id: 'value',
-    name: 'Value',
-    price: 4.99,
-    credits: 75,
-    perCredit: '$0.07',
-    popular: true,
-    icon: <Star className="h-5 w-5" />,
-    color: 'border-primary',
-    features: [
-      '75 AI question generations',
-      'Up to 100 questions each',
-      'All export formats',
-      'Priority AI processing',
-      '30 days ad-free ✨',
-      'Credits never expire',
-    ],
-  },
-  {
-    id: 'power',
-    name: 'Power',
-    price: 9.99,
-    credits: 200,
-    perCredit: '$0.05',
-    popular: false,
-    icon: <Crown className="h-5 w-5" />,
-    color: 'border-amber-500/50',
-    features: [
-      '200 AI question generations',
-      'Unlimited questions each',
-      'All export formats',
-      'Priority AI processing',
-      '30 days ad-free ✨',
-      'Team sharing',
-      'Credits never expire',
-    ],
-  },
-];
+const FLW_PUBLIC_KEY = import.meta.env.VITE_FLW_PUBLIC_KEY || '';
+const IS_TEST_MODE = FLW_PUBLIC_KEY.includes('_TEST-');
 
+/* ─── Component ──────────────────────────────────────── */
 export default function BuyCredits() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [balance, setBalance] = useState<number | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loadingBalance, setLoadingBalance] = useState(true);
   const [activeTab, setActiveTab] = useState<'buy' | 'history'>('buy');
+  const [payingPack, setPayingPack] = useState<string | null>(null);
+  const [successInfo, setSuccessInfo] = useState<{ credits: number; hubUnlocked: boolean } | null>(null);
+  const currency = useRef(detectCurrency());
 
   useEffect(() => {
     loadWallet();
     loadTransactions();
 
-    // Realtime balance subscription
     const channel = supabase
       .channel('credits-wallet-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'credits_wallet',
-          filter: `user_id=eq.${user?.id}`,
-        },
-        (payload: any) => {
-          if (payload.new?.balance !== undefined) {
-            setBalance(payload.new.balance);
-          }
-        }
-      )
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'credits_wallet',
+        filter: `user_id=eq.${user?.id}`,
+      }, (payload: any) => {
+        if (payload.new?.balance !== undefined) setBalance(payload.new.balance);
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
@@ -122,13 +203,7 @@ export default function BuyCredits() {
       .select('balance')
       .eq('user_id', user!.id)
       .single();
-
-    if (data) {
-      setBalance(data.balance);
-    } else {
-      // Wallet is created server-side by handle_new_user trigger
-      setBalance(0);
-    }
+    setBalance(data?.balance ?? 0);
     setLoadingBalance(false);
   };
 
@@ -139,42 +214,90 @@ export default function BuyCredits() {
       .eq('user_id', user!.id)
       .order('created_at', { ascending: false })
       .limit(20);
-
     if (data) setTransactions(data);
   };
 
-  const handleBuyCredits = async (pack: CreditPack) => {
-    // TODO: Replace with real Flutterwave/Stripe payment
-    // For now shows a coming soon message
-    toast.info(`Payment gateway coming soon! Pack: ${pack.name} — ${pack.credits} credits for $${pack.price}`);
+  const refreshCredits = useCallback(() => {
+    loadWallet();
+    loadTransactions();
+  }, [user?.id]);
 
-    // ---- FLUTTERWAVE INTEGRATION (uncomment when ready) ----
-    // const handler = window.FlutterwaveCheckout({
-    //   public_key: 'YOUR_FLUTTERWAVE_PUBLIC_KEY',
-    //   tx_ref: `credits-${Date.now()}`,
-    //   amount: pack.price,
-    //   currency: 'USD',
-    //   customer: { email: user!.email },
-    //   meta: { user_id: user!.id, credits: pack.credits, pack: pack.id },
-    //   callback: async (response) => {
-    //     if (response.status === 'successful') {
-    //       await supabase.rpc('add_credits', { p_user_id: user!.id, p_credits: pack.credits });
-    //       await supabase.from('credit_transactions').insert({
-    //         user_id: user!.id,
-    //         amount: pack.credits,
-    //         type: 'purchase',
-    //         description: `Bought ${pack.name} pack`,
-    //         payment_ref: response.transaction_id,
-    //       });
-    //       toast.success(`🎉 ${pack.credits} credits added!`);
-    //       loadWallet();
-    //       loadTransactions();
-    //     }
-    //   },
-    //   onclose: () => {},
-    // });
+  /* ─── Payment flow ─────────────────────────────────── */
+  const handleBuyCredits = async (pack: CreditPack) => {
+    if (!FLW_PUBLIC_KEY) {
+      toast.error('Payment not configured. Please contact support.');
+      return;
+    }
+
+    setPayingPack(pack.id);
+
+    try {
+      await loadFlutterwave();
+
+      const cur = currency.current;
+      const amount = convertPrice(pack.baseCredits * BASE_PRICE_PER_CREDIT, cur);
+      const txRef = `examforge-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+      // Insert pending row
+      const { error: insertErr } = await supabase.from('payment_transactions').insert({
+        user_id: user!.id,
+        tx_ref: txRef,
+        amount,
+        currency: cur,
+        credits: pack.totalCredits,
+        package_name: pack.name,
+        status: 'pending',
+        customer_email: user!.email || '',
+        customer_name: user!.user_metadata?.display_name || '',
+      });
+
+      if (insertErr) throw insertErr;
+
+      window.FlutterwaveCheckout({
+        public_key: FLW_PUBLIC_KEY,
+        tx_ref: txRef,
+        amount,
+        currency: cur,
+        customer: {
+          email: user!.email || '',
+          name: user!.user_metadata?.display_name || '',
+          phone_number: '',
+        },
+        customizations: {
+          title: 'ExamForge Credits',
+          description: `${pack.totalCredits} credits — ${pack.name} Package`,
+          logo: 'https://examfogeai.lovable.app/pwa-192x192.png',
+        },
+        meta: {
+          user_id: user!.id,
+          credits: pack.totalCredits,
+          package: pack.id,
+        },
+        payment_options: 'card,banktransfer,ussd,mobilemoney,googlepay,applepay',
+        callback: (response: any) => {
+          if (response.status === 'successful' || response.status === 'completed') {
+            setSuccessInfo({
+              credits: pack.totalCredits,
+              hubUnlocked: pack.totalCredits >= 10,
+            });
+            refreshCredits();
+          } else {
+            toast.error('Payment was not successful. Please try again.');
+          }
+          setPayingPack(null);
+        },
+        onclose: () => {
+          setPayingPack(null);
+        },
+      });
+    } catch (err: any) {
+      console.error('Payment error:', err);
+      toast.error('Could not start payment. Please try again.');
+      setPayingPack(null);
+    }
   };
 
+  /* ─── Helpers ──────────────────────────────────────── */
   const getTypeIcon = (type: string) => {
     switch (type) {
       case 'purchase': return '💳';
@@ -186,14 +309,11 @@ export default function BuyCredits() {
     }
   };
 
-  const getTypeColor = (type: string) => {
-    if (type === 'usage') return 'text-destructive';
-    return 'text-emerald-500';
-  };
+  const getTypeColor = (type: string) =>
+    type === 'usage' ? 'text-destructive' : 'text-emerald-500';
 
-  const getAmountPrefix = (type: string) => {
-    return type === 'usage' ? '-' : '+';
-  };
+  const getAmountPrefix = (type: string) =>
+    type === 'usage' ? '-' : '+';
 
   const getBalanceColor = () => {
     if (balance === null) return 'text-foreground';
@@ -202,6 +322,44 @@ export default function BuyCredits() {
     return 'text-emerald-500';
   };
 
+  /* ─── Success screen ───────────────────────────────── */
+  if (successInfo) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="max-w-md w-full p-8 text-center space-y-6">
+          <div className="mx-auto w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center">
+            <PartyPopper className="h-8 w-8 text-emerald-500" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-foreground mb-2">Payment Successful!</h2>
+            <p className="text-muted-foreground">
+              <span className="text-emerald-500 font-bold text-lg">{successInfo.credits}</span> credits have been added to your account.
+            </p>
+          </div>
+          {successInfo.hubUnlocked && (
+            <Badge className="bg-primary/10 text-primary border-primary/20 px-4 py-2 text-sm">
+              🎉 Community Hub Unlocked!
+            </Badge>
+          )}
+          <div className="flex flex-col gap-3 pt-2">
+            <Button onClick={() => navigate('/create-test')} className="w-full">
+              <Rocket className="h-4 w-4 mr-2" /> Generate Test
+            </Button>
+            {successInfo.hubUnlocked && (
+              <Button variant="outline" onClick={() => navigate('/community')} className="w-full">
+                Community Hub <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            )}
+            <Button variant="ghost" onClick={() => setSuccessInfo(null)} className="w-full text-muted-foreground">
+              Back to Credits
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  /* ─── Main render ──────────────────────────────────── */
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -219,7 +377,19 @@ export default function BuyCredits() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-3xl">
+      <main className="container mx-auto px-4 py-8 max-w-4xl">
+
+        {/* Test mode banner */}
+        {IS_TEST_MODE && (
+          <Card className="p-4 mb-6 border-amber-500/40 bg-amber-500/5">
+            <p className="text-sm font-semibold text-amber-600 mb-1">
+              🧪 Test Mode — No real money charged
+            </p>
+            <p className="text-xs text-muted-foreground font-mono">
+              Card: 5531 8866 5214 2950 · CVV: 564 · Expiry: 09/32 · PIN: 3310
+            </p>
+          </Card>
+        )}
 
         {/* Balance Card */}
         <Card className="p-6 mb-8 text-center bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
@@ -235,10 +405,10 @@ export default function BuyCredits() {
           )}
           <p className="text-sm text-muted-foreground">
             {balance === 0
-              ? '😅 No credits left — buy a pack or watch an ad below'
+              ? '😅 No credits left — buy a pack below'
               : balance === 1
               ? '⚠️ Almost out! 1 credit remaining'
-              : `✅ Each generation uses 1 credit`}
+              : '✅ Each generation uses 1 credit'}
           </p>
         </Card>
 
@@ -282,61 +452,81 @@ export default function BuyCredits() {
             </Card>
 
             {/* Credit packs */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-              {PACKS.map((pack) => (
-                <Card
-                  key={pack.id}
-                  className={`
-                    p-6 flex flex-col relative overflow-hidden border-2 transition-all duration-200
-                    hover:shadow-lg hover:-translate-y-1
-                    ${pack.popular ? 'border-primary shadow-md shadow-primary/10' : pack.color}
-                  `}
-                >
-                  {/* Popular badge */}
-                  {pack.popular && (
-                    <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-bl-xl">
-                      POPULAR
-                    </div>
-                  )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              {PACKS.map((pack) => {
+                const price = convertPrice(pack.baseCredits * BASE_PRICE_PER_CREDIT, currency.current);
+                const perCredit = formatPrice(
+                  Math.ceil(price / pack.totalCredits),
+                  currency.current
+                );
+                const isPaying = payingPack === pack.id;
 
-                  {/* Pack header */}
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className={`p-2 rounded-lg ${pack.popular ? 'bg-primary/10 text-primary' : 'bg-accent text-accent-foreground'}`}>
-                      {pack.icon}
-                    </div>
-                    <span className="font-bold text-foreground">{pack.name}</span>
-                  </div>
-
-                  {/* Price */}
-                  <div className="mb-1">
-                    <span className="text-3xl font-extrabold text-foreground">${pack.price}</span>
-                  </div>
-                  <p className="text-sm text-primary font-semibold mb-1">{pack.credits} credits</p>
-                  <p className="text-xs text-muted-foreground mb-4">{pack.perCredit} per credit</p>
-
-                  {/* Features */}
-                  <ul className="space-y-2 mb-6 flex-1">
-                    {pack.features.map((f, i) => (
-                      <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
-                        <CheckCircle className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0 mt-0.5" />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-
-                  <Button
-                    onClick={() => handleBuyCredits(pack)}
-                    className={`w-full ${pack.popular ? '' : 'variant-outline'}`}
-                    variant={pack.popular ? 'default' : 'outline'}
+                return (
+                  <Card
+                    key={pack.id}
+                    className={`
+                      p-5 flex flex-col relative overflow-hidden border-2 transition-all duration-200
+                      hover:shadow-lg hover:-translate-y-1
+                      ${pack.popular ? 'border-primary shadow-md shadow-primary/10' : pack.color}
+                    `}
                   >
-                    Buy {pack.credits} Credits
-                  </Button>
-                </Card>
-              ))}
+                    {pack.popular && (
+                      <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-[10px] font-bold px-3 py-1 rounded-bl-xl">
+                        MOST POPULAR
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className={`p-2 rounded-lg ${pack.popular ? 'bg-primary/10 text-primary' : 'bg-accent text-accent-foreground'}`}>
+                        {pack.icon}
+                      </div>
+                      <span className="font-bold text-foreground text-sm">{pack.name}</span>
+                    </div>
+
+                    <div className="mb-1">
+                      <span className="text-2xl font-extrabold text-foreground">
+                        {formatPrice(price, currency.current)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-primary font-semibold mb-0.5">
+                      {pack.totalCredits} credits
+                      {pack.bonusCredits > 0 && (
+                        <span className="text-emerald-500 text-xs ml-1">+{pack.bonusCredits} bonus</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-muted-foreground mb-3">{perCredit}/credit</p>
+
+                    <ul className="space-y-1.5 mb-5 flex-1">
+                      {pack.features.map((f, i) => (
+                        <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
+                          <CheckCircle className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+
+                    <Button
+                      onClick={() => handleBuyCredits(pack)}
+                      disabled={isPaying || !FLW_PUBLIC_KEY}
+                      className="w-full"
+                      variant={pack.popular ? 'default' : 'outline'}
+                    >
+                      {isPaying ? (
+                        <span className="flex items-center gap-2">
+                          <span className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                          Processing…
+                        </span>
+                      ) : (
+                        `Buy ${pack.totalCredits} Credits`
+                      )}
+                    </Button>
+                  </Card>
+                );
+              })}
             </div>
 
             {/* Watch ad option */}
-            <Card className="p-5 border-dashed border-2 text-center">
+            <Card className="p-5 border-dashed border-2 text-center mb-8">
               <p className="text-sm font-semibold text-foreground mb-1">
                 📺 No money? No problem!
               </p>
@@ -352,8 +542,24 @@ export default function BuyCredits() {
               </Button>
             </Card>
 
+            {/* Trust badges */}
+            <div className="flex flex-wrap justify-center gap-6 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <Lock className="h-3.5 w-3.5" />
+                256-bit SSL encrypted
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Shield className="h-3.5 w-3.5" />
+                Secured by Flutterwave
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Zap className="h-3.5 w-3.5" />
+                Instant credit delivery
+              </div>
+            </div>
+
             <p className="text-xs text-muted-foreground text-center mt-4">
-              💡 Credits never expire once purchased. Secure payment powered by Flutterwave.
+              💡 Credits never expire once purchased. Payments are in {currency.current}.
             </p>
           </>
         )}
@@ -380,11 +586,8 @@ export default function BuyCredits() {
                       <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                         <Clock className="h-3 w-3" />
                         {new Date(t.created_at).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
+                          month: 'short', day: 'numeric', year: 'numeric',
+                          hour: '2-digit', minute: '2-digit',
                         })}
                       </div>
                     </div>
