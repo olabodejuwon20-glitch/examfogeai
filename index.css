@@ -1,0 +1,132 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800;900&display=swap');
+
+@layer base {
+  :root {
+    --background:        220 25% 97%;
+    --foreground:        222 47% 11%;
+    --card:              0 0% 100%;
+    --card-foreground:   222 47% 11%;
+    --popover:           0 0% 100%;
+    --popover-foreground:222 47% 11%;
+    --primary:           221 83% 53%;
+    --primary-foreground:0 0% 100%;
+    --secondary:         220 14% 95%;
+    --secondary-foreground:222 47% 11%;
+    --muted:             220 14% 95%;
+    --muted-foreground:  220 9% 50%;
+    --accent:            221 83% 95%;
+    --accent-foreground: 221 83% 40%;
+    --destructive:       0 84% 60%;
+    --destructive-foreground:0 0% 100%;
+    --border:            220 13% 90%;
+    --input:             220 13% 90%;
+    --ring:              221 83% 53%;
+    --radius:            0.875rem;
+    --success:           142 71% 45%;
+    --success-foreground:0 0% 100%;
+    --warning:           38 92% 50%;
+    --warning-foreground:0 0% 100%;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  html { font-family:'Sora',sans-serif; -webkit-tap-highlight-color:transparent; }
+  body { @apply bg-background text-foreground antialiased; font-family:'Sora',sans-serif; }
+  h1,h2,h3,h4,h5,h6 { font-family:'Sora',sans-serif; letter-spacing:-0.02em; }
+  /* Prevent iOS zoom on input focus */
+  input,select,textarea { font-size:16px !important; }
+  button { font-family:'Sora',sans-serif; }
+}
+
+@layer utilities {
+  .gradient-primary { background:linear-gradient(135deg,#1d4ed8,#2563eb); }
+  .gradient-hero    { background:linear-gradient(160deg,#0f172a 0%,#1e3a8a 45%,#1d4ed8 100%); }
+  .text-gradient    { background:linear-gradient(135deg,#1d4ed8,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text; }
+  .shadow-blue      { box-shadow:0 8px 32px rgba(37,99,235,0.25); }
+}
+
+/* ── Mobile Bottom Nav ─────────────────────────────────── */
+.mobile-nav {
+  display:none;
+  position:fixed;bottom:0;left:0;right:0;
+  background:rgba(255,255,255,0.97);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-top:1px solid #e2e8f0;
+  padding:8px 0 max(12px,env(safe-area-inset-bottom));
+  z-index:50;
+  box-shadow:0 -4px 20px rgba(0,0,0,0.06);
+}
+.mobile-nav-items {
+  display:flex;justify-content:space-around;align-items:center;padding:0 4px;
+}
+.mobile-nav-item {
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:4px 8px;color:#94a3b8;text-decoration:none;
+  min-width:52px;border:none;background:none;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;transition:all .15s;
+  font-family:'Sora',sans-serif;
+}
+.mobile-nav-item:active { transform:scale(0.88); }
+.mobile-nav-item.active { color:#2563eb; }
+.mobile-nav-item.active .nav-icon-bg { background:#eff6ff; }
+.nav-icon-bg {
+  width:36px;height:36px;border-radius:11px;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .15s;
+}
+.mobile-nav-label { font-size:10px;font-weight:700; }
+
+/* FAB */
+.nav-fab {
+  width:52px;height:52px;
+  background:linear-gradient(135deg,#1d4ed8,#2563eb);
+  border-radius:16px;display:flex;align-items:center;justify-content:center;
+  color:white;box-shadow:0 6px 20px rgba(37,99,235,0.45);
+  margin-top:-16px;border:3px solid white;
+  transition:all .2s;-webkit-tap-highlight-color:transparent;
+  cursor:pointer;
+}
+.nav-fab:active { transform:scale(0.88); box-shadow:0 3px 10px rgba(37,99,235,0.3); }
+
+@media (max-width:768px) {
+  .mobile-nav { display:block; }
+  .hide-on-mobile { display:none !important; }
+  .pb-mobile { padding-bottom:90px !important; }
+}
+
+/* ── Native touch feedback ─────────────────────────────── */
+.touch-card {
+  background:white;border-radius:20px;border:1.5px solid #e2e8f0;
+  transition:all .15s;cursor:pointer;-webkit-tap-highlight-color:transparent;
+}
+.touch-card:active { transform:scale(0.97); opacity:.9; }
+
+.touch-btn {
+  transition:all .15s;-webkit-tap-highlight-color:transparent;cursor:pointer;
+}
+.touch-btn:active { transform:scale(0.93); }
+
+/* ── Animations ────────────────────────────────────────── */
+@keyframes slideUp {
+  from{opacity:0;transform:translateY(16px)}
+  to{opacity:1;transform:none}
+}
+@keyframes fadeIn { from{opacity:0}to{opacity:1} }
+@keyframes efSpin { to{transform:rotate(360deg)} }
+@keyframes efPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.7;transform:scale(0.94)} }
+
+.anim-1 { animation:slideUp .3s ease both; }
+.anim-2 { animation:slideUp .3s .07s ease both; }
+.anim-3 { animation:slideUp .3s .14s ease both; }
+.anim-4 { animation:slideUp .3s .21s ease both; }
+.anim-5 { animation:slideUp .3s .28s ease both; }
+
+/* ── Safe area ─────────────────────────────────────────── */
+@supports (padding:max(0px)) {
+  .safe-top { padding-top:max(0px,env(safe-area-inset-top)); }
+}
