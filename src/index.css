@@ -105,16 +105,13 @@
   }
 }
 
-[data-lovable-badge],
-.lovable-badge,
 #lovable-badge,
-a[href*="lovable.app"],
-div[class*="lovable"],
-iframe[src*="lovable"] {
+[id*="lovable"],
+[class*="lovable"],
+[data-testid*="lovable"],
+a[href*="lovable"],
+div[style*="lovable"],
+.fixed.bottom-4,
+.fixed.bottom-2 {
   display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-  width: 0 !important;
-  height: 0 !important;
 }
