@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { lovable } from '@/integrations/lovable/index';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,6 +19,15 @@ export default function AuthPage() {
   const [socialLoading, setSocialLoading] = useState<string | null>(null);
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Capture referral code from URL
+  useEffect(() => {
+    const refCode = searchParams.get('ref');
+    if (refCode) {
+      localStorage.setItem('pending_referral_code', refCode);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +39,26 @@ export default function AuthPage() {
       } else {
         await signUp(email, password, displayName);
         toast.success('Account created! Check your email to confirm.');
+
+        // Process referral after signup
+        const pendingRef = localStorage.getItem('pending_referral_code');
+        if (pendingRef) {
+          try {
+            const { data: refCodeRow } = await supabase.from('referral_codes').select('user_id').eq('code', pendingRef).single();
+            if (refCodeRow) {
+              const { data: { user: newUser } } = await supabase.auth.getUser();
+              if (newUser && refCodeRow.user_id !== newUser.id) {
+                await supabase.from('referrals').insert({
+                  referrer_id: refCodeRow.user_id,
+                  referred_id: newUser.id,
+                  referral_code: pendingRef,
+                  status: 'pending',
+                });
+              }
+            }
+            localStorage.removeItem('pending_referral_code');
+          } catch { /* referral processing is best-effort */ }
+        }
       }
       navigate('/dashboard');
     } catch (err: any) {

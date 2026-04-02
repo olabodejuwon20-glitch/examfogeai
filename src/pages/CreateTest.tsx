@@ -1,30 +1,35 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { extractTextFromFile } from '@/lib/fileParser';
+import { computeContentHash, shuffleArray } from '@/lib/contentHash';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
-import { GraduationCap, Upload, FileText, Sparkles, ArrowLeft, Loader2 } from 'lucide-react';
+import { GraduationCap, Upload, FileText, Sparkles, ArrowLeft, Loader2, Link2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 
 export default function CreateTest() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
+  const location = useLocation();
+  const resourceState = location.state as { resourceId?: string; resourceTitle?: string; resourceContent?: string } | null;
+  const [title, setTitle] = useState(resourceState?.resourceTitle || '');
+  const [content, setContent] = useState(resourceState?.resourceContent || '');
   const [numQuestions, setNumQuestions] = useState(10);
   const [duration, setDuration] = useState(30);
   const [format, setFormat] = useState('cbt');
   const [loading, setLoading] = useState(false);
   const [uploadMethod, setUploadMethod] = useState<'text' | 'file'>('text');
   const [fileLoading, setFileLoading] = useState(false);
+  const [isShareable, setIsShareable] = useState(false);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -68,6 +73,22 @@ export default function CreateTest() {
 
     setLoading(true);
     try {
+      const contentHash = computeContentHash(content.trim());
+
+      // Check question cache
+      const { data: cached } = await supabase
+        .from('question_cache')
+        .select('*')
+        .eq('content_hash', contentHash)
+        .single();
+
+      // Prepare share code if shareable
+      let shareCode: string | null = null;
+      if (isShareable) {
+        const { data: sc } = await supabase.rpc('generate_share_code');
+        shareCode = sc as string;
+      }
+
       const { data: test, error: testError } = await supabase
         .from('tests')
         .insert({
@@ -77,24 +98,48 @@ export default function CreateTest() {
           num_questions: numQuestions,
           duration_minutes: duration,
           question_format: format,
-          status: 'generating',
+          status: cached && (cached as any).questions?.length >= numQuestions ? 'ready' : 'generating',
+          content_hash: contentHash,
+          source_resource_id: resourceState?.resourceId || null,
+          is_public: isShareable,
+          share_code: shareCode,
         })
         .select()
         .single();
 
       if (testError) throw testError;
 
-      // Navigate immediately — test page will poll for readiness
+      // Cache hit path
+      if (cached && (cached as any).questions?.length >= numQuestions) {
+        const cachedQuestions = shuffleArray((cached as any).questions).slice(0, numQuestions);
+        const questionsToInsert = cachedQuestions.map((q: any, i: number) => ({
+          test_id: test.id,
+          question_number: i + 1,
+          question_text: q.question_text,
+          option_a: q.option_a,
+          option_b: q.option_b,
+          option_c: q.option_c,
+          option_d: q.option_d,
+          correct_answer: q.correct_answer,
+          explanation: q.explanation,
+        }));
+
+        await supabase.from('questions').insert(questionsToInsert);
+        await supabase.from('tests').update({ status: 'ready' }).eq('id', test.id);
+
+        // Update cache stats (best-effort, ignore type errors on non-typed table)
+        // No credit deduction for cache hits
+        toast.success('⚡ Questions ready instantly!');
+        navigate(`/test/${test.id}`);
+        return;
+      }
+
+      // Cache miss — generate via AI
       toast.info('Generating questions... You\'ll be notified when ready.');
       navigate(`/test/${test.id}`);
 
-      // Fire generation in background (don't await)
       supabase.functions.invoke('generate-questions', {
-        body: {
-          testId: test.id,
-          content: content.trim(),
-          numQuestions,
-        },
+        body: { testId: test.id, content: content.trim(), numQuestions },
       }).catch((err) => {
         console.error('Background generation failed:', err);
       });
@@ -239,6 +284,18 @@ export default function CreateTest() {
               </Select>
             </div>
           </Card>
+
+          {/* Shareable toggle */}
+          <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-card">
+            <div className="flex items-center gap-2">
+              <Link2 className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-medium text-foreground">Make this quiz shareable</p>
+                <p className="text-xs text-muted-foreground">Anyone with the link can take it</p>
+              </div>
+            </div>
+            <Switch checked={isShareable} onCheckedChange={setIsShareable} />
+          </div>
 
           <Button
             onClick={handleGenerate}

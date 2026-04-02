@@ -5,8 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { GraduationCap, ArrowLeft, CheckCircle, XCircle, Trophy, BookmarkPlus, Loader2, Download } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { GraduationCap, ArrowLeft, CheckCircle, XCircle, Trophy, BookmarkPlus, Loader2, Download, Share2, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -48,6 +48,11 @@ export default function ResultsPage() {
   const [selectedBankId, setSelectedBankId] = useState('');
   const [savingToBank, setSavingToBank] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareCode, setShareCode] = useState<string | null>(null);
+  const [isPublic, setIsPublic] = useState(false);
+  const [attemptCount, setAttemptCount] = useState(0);
+  const [makingPublic, setMakingPublic] = useState(false);
 
   useEffect(() => {
     loadResults();
@@ -55,14 +60,23 @@ export default function ResultsPage() {
   }, [testId]);
 
   const loadResults = async () => {
-    const [resultRes, questionsRes, banksRes] = await Promise.all([
+    const [resultRes, questionsRes, banksRes, testRes] = await Promise.all([
       supabase.from('test_results').select('*, test:tests(title)').eq('test_id', testId).eq('user_id', user!.id).order('completed_at', { ascending: false }).limit(1).single(),
       supabase.from('questions').select('*').eq('test_id', testId).order('question_number'),
       supabase.from('question_banks').select('id, name').order('name'),
+      supabase.from('tests').select('is_public, share_code').eq('id', testId).single(),
     ]);
     if (resultRes.data) setResult(resultRes.data);
     if (questionsRes.data) setQuestions(questionsRes.data);
     if (banksRes.data) setBanks(banksRes.data as QuestionBank[]);
+    if (testRes.data) {
+      setIsPublic((testRes.data as any).is_public || false);
+      setShareCode((testRes.data as any).share_code || null);
+      if ((testRes.data as any).share_code) {
+        const { count } = await supabase.from('quiz_attempts').select('id', { count: 'exact', head: true }).eq('share_code', (testRes.data as any).share_code);
+        setAttemptCount(count || 0);
+      }
+    }
     setLoading(false);
   };
 
@@ -93,7 +107,32 @@ export default function ResultsPage() {
     setSavingToBank(false);
   };
 
-  const exportToPDF = () => {
+  const handleMakePublic = async () => {
+    setMakingPublic(true);
+    try {
+      const { data: sc } = await supabase.rpc('generate_share_code');
+      await supabase.from('tests').update({ is_public: true, share_code: sc as string }).eq('id', testId);
+      setShareCode(sc as string);
+      setIsPublic(true);
+      toast.success('Quiz is now public!');
+    } catch { toast.error('Failed to make quiz public'); }
+    setMakingPublic(false);
+  };
+
+  const copyShareLink = () => {
+    if (shareCode) {
+      navigator.clipboard.writeText(`examforge.app/quiz/${shareCode}`);
+      toast.success('Link copied!');
+    }
+  };
+
+  const shareWhatsApp = () => {
+    if (shareCode) {
+      const grade = score >= 70 ? 'A' : score >= 50 ? 'B' : 'C';
+      window.open(`https://wa.me/?text=${encodeURIComponent(`I scored ${grade} on this ${result.test?.title || 'quiz'}! Can you beat me? Try it here: examforge.app/quiz/${shareCode}`)}`, '_blank');
+    }
+  };
+
     const doc = new jsPDF();
     const title = result.test?.title || 'Test Results';
     const dateStr = new Date(result.completed_at).toLocaleDateString();
@@ -284,6 +323,48 @@ export default function ResultsPage() {
               </div>
             </DialogContent>
           </Dialog>
+            {/* Share Quiz Button */}
+            {isPublic && shareCode ? (
+              <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Share2 className="h-4 w-4 mr-2" /> Share Quiz
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Share Quiz</DialogTitle></DialogHeader>
+                  <div className="space-y-4">
+                    <div className="p-3 bg-muted rounded-lg">
+                      <p className="text-xs text-muted-foreground mb-1">Share URL</p>
+                      <code className="text-sm text-foreground">examforge.app/quiz/{shareCode}</code>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{attemptCount} people have taken this quiz</p>
+                    <div className="flex gap-2">
+                      <Button className="flex-1" onClick={copyShareLink}><Copy className="h-4 w-4 mr-1" /> Copy Link</Button>
+                      <Button className="flex-1" variant="outline" onClick={shareWhatsApp}><Share2 className="h-4 w-4 mr-1" /> WhatsApp</Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            ) : (
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Share2 className="h-4 w-4 mr-2" /> Share Quiz
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Make this quiz public?</DialogTitle></DialogHeader>
+                  <p className="text-sm text-muted-foreground">Make this quiz public so anyone can take it?</p>
+                  <DialogFooter>
+                    <Button onClick={handleMakePublic} disabled={makingPublic}>
+                      {makingPublic ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                      Confirm
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </Card>
 

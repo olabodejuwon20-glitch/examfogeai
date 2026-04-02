@@ -14,14 +14,19 @@ import ResultsPage from "./pages/ResultsPage";
 import Leaderboard from "./pages/Leaderboard";
 import QuestionBank from "./pages/QuestionBank";
 import BuyCredits from "./pages/BuyCredits";
+import ResourceBank from "./pages/ResourceBank";
+import PublicQuiz from "./pages/PublicQuiz";
+import Referral from "./pages/Referral";
 import NotFound from "./pages/NotFound";
+import { GraduationCap } from "lucide-react";
 
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
+      <GraduationCap className="h-12 w-12 text-primary animate-pulse" />
       <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
     </div>
   );
@@ -56,8 +61,11 @@ const App = () => {
               <Route path="/results/:testId" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
               <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
               <Route path="/question-banks" element={<ProtectedRoute><QuestionBank /></ProtectedRoute>} />
-              {/* ✅ NEW: Credits page */}
               <Route path="/credits" element={<ProtectedRoute><BuyCredits /></ProtectedRoute>} />
+              <Route path="/resource-bank" element={<ProtectedRoute><ResourceBank /></ProtectedRoute>} />
+              <Route path="/referral" element={<ProtectedRoute><Referral /></ProtectedRoute>} />
+              {/* Public quiz route — no auth required */}
+              <Route path="/quiz/:code" element={<PublicQuiz />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AuthProvider>
