@@ -323,6 +323,48 @@ export default function ResultsPage() {
               </div>
             </DialogContent>
           </Dialog>
+            {/* Share Quiz Button */}
+            {isPublic && shareCode ? (
+              <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Share2 className="h-4 w-4 mr-2" /> Share Quiz
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Share Quiz</DialogTitle></DialogHeader>
+                  <div className="space-y-4">
+                    <div className="p-3 bg-muted rounded-lg">
+                      <p className="text-xs text-muted-foreground mb-1">Share URL</p>
+                      <code className="text-sm text-foreground">examforge.app/quiz/{shareCode}</code>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{attemptCount} people have taken this quiz</p>
+                    <div className="flex gap-2">
+                      <Button className="flex-1" onClick={copyShareLink}><Copy className="h-4 w-4 mr-1" /> Copy Link</Button>
+                      <Button className="flex-1" variant="outline" onClick={shareWhatsApp}><Share2 className="h-4 w-4 mr-1" /> WhatsApp</Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            ) : (
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Share2 className="h-4 w-4 mr-2" /> Share Quiz
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Make this quiz public?</DialogTitle></DialogHeader>
+                  <p className="text-sm text-muted-foreground">Make this quiz public so anyone can take it?</p>
+                  <DialogFooter>
+                    <Button onClick={handleMakePublic} disabled={makingPublic}>
+                      {makingPublic ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                      Confirm
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </Card>
 
