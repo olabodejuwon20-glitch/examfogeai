@@ -107,7 +107,32 @@ export default function ResultsPage() {
     setSavingToBank(false);
   };
 
-  const exportToPDF = () => {
+  const handleMakePublic = async () => {
+    setMakingPublic(true);
+    try {
+      const { data: sc } = await supabase.rpc('generate_share_code');
+      await supabase.from('tests').update({ is_public: true, share_code: sc as string }).eq('id', testId);
+      setShareCode(sc as string);
+      setIsPublic(true);
+      toast.success('Quiz is now public!');
+    } catch { toast.error('Failed to make quiz public'); }
+    setMakingPublic(false);
+  };
+
+  const copyShareLink = () => {
+    if (shareCode) {
+      navigator.clipboard.writeText(`examforge.app/quiz/${shareCode}`);
+      toast.success('Link copied!');
+    }
+  };
+
+  const shareWhatsApp = () => {
+    if (shareCode) {
+      const grade = score >= 70 ? 'A' : score >= 50 ? 'B' : 'C';
+      window.open(`https://wa.me/?text=${encodeURIComponent(`I scored ${grade} on this ${result.test?.title || 'quiz'}! Can you beat me? Try it here: examforge.app/quiz/${shareCode}`)}`, '_blank');
+    }
+  };
+
     const doc = new jsPDF();
     const title = result.test?.title || 'Test Results';
     const dateStr = new Date(result.completed_at).toLocaleDateString();
