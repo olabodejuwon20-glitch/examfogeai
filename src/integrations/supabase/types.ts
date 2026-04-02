@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      airtime_payouts: {
+        Row: {
+          amount: number
+          created_at: string | null
+          error: string | null
+          id: string
+          network: string | null
+          phone: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          network?: string | null
+          phone: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          error?: string | null
+          id?: string
+          network?: string | null
+          phone?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       credit_transactions: {
         Row: {
           amount: number
@@ -51,6 +84,8 @@ export type Database = {
           created_at: string | null
           id: string
           last_daily_credit: string | null
+          reward_balance: number
+          reward_expires_at: string | null
           total_purchased: number
           updated_at: string | null
           user_id: string
@@ -61,6 +96,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           last_daily_credit?: string | null
+          reward_balance?: number
+          reward_expires_at?: string | null
           total_purchased?: number
           updated_at?: string | null
           user_id: string
@@ -71,6 +108,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           last_daily_credit?: string | null
+          reward_balance?: number
+          reward_expires_at?: string | null
           total_purchased?: number
           updated_at?: string | null
           user_id?: string
@@ -197,6 +236,33 @@ export type Database = {
         }
         Relationships: []
       }
+      question_cache: {
+        Row: {
+          content_hash: string
+          created_at: string | null
+          generation_count: number
+          id: string
+          last_used_at: string | null
+          questions: Json
+        }
+        Insert: {
+          content_hash: string
+          created_at?: string | null
+          generation_count?: number
+          id?: string
+          last_used_at?: string | null
+          questions?: Json
+        }
+        Update: {
+          content_hash?: string
+          created_at?: string | null
+          generation_count?: number
+          id?: string
+          last_used_at?: string | null
+          questions?: Json
+        }
+        Relationships: []
+      }
       questions: {
         Row: {
           correct_answer: string
@@ -246,6 +312,159 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      quiz_attempts: {
+        Row: {
+          completed_at: string | null
+          correct_answers: number
+          guest_name: string | null
+          id: string
+          score: number
+          share_code: string
+          total_questions: number
+          user_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          correct_answers?: number
+          guest_name?: string | null
+          id?: string
+          score?: number
+          share_code: string
+          total_questions?: number
+          user_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          correct_answers?: number
+          guest_name?: string | null
+          id?: string
+          score?: number
+          share_code?: string
+          total_questions?: number
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      referral_codes: {
+        Row: {
+          code: string
+          created_at: string | null
+          id: string
+          total_airtime_earned: number
+          total_referrals: number
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          id?: string
+          total_airtime_earned?: number
+          total_referrals?: number
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          id?: string
+          total_airtime_earned?: number
+          total_referrals?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          airtime_amount: number | null
+          airtime_sent_at: string | null
+          created_at: string | null
+          id: string
+          referral_code: string
+          referred_id: string
+          referrer_id: string
+          reward_tier: number | null
+          status: string
+        }
+        Insert: {
+          airtime_amount?: number | null
+          airtime_sent_at?: string | null
+          created_at?: string | null
+          id?: string
+          referral_code: string
+          referred_id: string
+          referrer_id: string
+          reward_tier?: number | null
+          status?: string
+        }
+        Update: {
+          airtime_amount?: number | null
+          airtime_sent_at?: string | null
+          created_at?: string | null
+          id?: string
+          referral_code?: string
+          referred_id?: string
+          referrer_id?: string
+          reward_tier?: number | null
+          status?: string
+        }
+        Relationships: []
+      }
+      resource_bank: {
+        Row: {
+          ai_category: string | null
+          ai_summary: string | null
+          country: string | null
+          created_at: string | null
+          description: string | null
+          exam: string | null
+          file_type: string | null
+          file_url: string | null
+          id: string
+          is_flagged: boolean
+          subject: string | null
+          test_gen_count: number
+          title: string
+          topic: string | null
+          upload_count: number
+          user_id: string
+        }
+        Insert: {
+          ai_category?: string | null
+          ai_summary?: string | null
+          country?: string | null
+          created_at?: string | null
+          description?: string | null
+          exam?: string | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          is_flagged?: boolean
+          subject?: string | null
+          test_gen_count?: number
+          title: string
+          topic?: string | null
+          upload_count?: number
+          user_id: string
+        }
+        Update: {
+          ai_category?: string | null
+          ai_summary?: string | null
+          country?: string | null
+          created_at?: string | null
+          description?: string | null
+          exam?: string | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          is_flagged?: boolean
+          subject?: string | null
+          test_gen_count?: number
+          title?: string
+          topic?: string | null
+          upload_count?: number
+          user_id?: string
+        }
+        Relationships: []
       }
       saved_questions: {
         Row: {
@@ -340,36 +559,48 @@ export type Database = {
       }
       tests: {
         Row: {
+          content_hash: string | null
           created_at: string | null
           duration_minutes: number
           id: string
+          is_public: boolean
           num_questions: number
           question_format: string
+          share_code: string | null
           source_content: string | null
+          source_resource_id: string | null
           status: string
           title: string
           updated_at: string | null
           user_id: string
         }
         Insert: {
+          content_hash?: string | null
           created_at?: string | null
           duration_minutes?: number
           id?: string
+          is_public?: boolean
           num_questions?: number
           question_format?: string
+          share_code?: string | null
           source_content?: string | null
+          source_resource_id?: string | null
           status?: string
           title: string
           updated_at?: string | null
           user_id: string
         }
         Update: {
+          content_hash?: string | null
           created_at?: string | null
           duration_minutes?: number
           id?: string
+          is_public?: boolean
           num_questions?: number
           question_format?: string
+          share_code?: string | null
           source_content?: string | null
+          source_resource_id?: string | null
           status?: string
           title?: string
           updated_at?: string | null
@@ -430,6 +661,11 @@ export type Database = {
             }
             Returns: undefined
           }
+      add_reward_credits: {
+        Args: { p_credits: number; p_type?: string; p_user_id: string }
+        Returns: undefined
+      }
+      create_referral_code: { Args: { p_user_id: string }; Returns: string }
       deduct_credit: { Args: { p_user_id: string }; Returns: undefined }
       fulfil_payment: {
         Args: {
@@ -443,6 +679,7 @@ export type Database = {
         }
         Returns: Json
       }
+      generate_share_code: { Args: never; Returns: string }
       get_leaderboard: {
         Args: { p_from?: string; p_to?: string }
         Returns: {
@@ -470,6 +707,7 @@ export type Database = {
         Args: { p_credits: number; p_user_id: string }
         Returns: undefined
       }
+      qualify_referral: { Args: { p_referred_id: string }; Returns: undefined }
       submit_test_answers: {
         Args: { p_test_id: string; p_user_answers: Json }
         Returns: Json
