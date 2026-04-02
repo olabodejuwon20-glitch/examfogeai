@@ -48,6 +48,11 @@ export default function ResultsPage() {
   const [selectedBankId, setSelectedBankId] = useState('');
   const [savingToBank, setSavingToBank] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareCode, setShareCode] = useState<string | null>(null);
+  const [isPublic, setIsPublic] = useState(false);
+  const [attemptCount, setAttemptCount] = useState(0);
+  const [makingPublic, setMakingPublic] = useState(false);
 
   useEffect(() => {
     loadResults();
