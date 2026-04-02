@@ -19,14 +19,17 @@ import { Link } from 'react-router-dom';
 export default function CreateTest() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
+  const location = useLocation();
+  const resourceState = location.state as { resourceId?: string; resourceTitle?: string; resourceContent?: string } | null;
+  const [title, setTitle] = useState(resourceState?.resourceTitle || '');
+  const [content, setContent] = useState(resourceState?.resourceContent || '');
   const [numQuestions, setNumQuestions] = useState(10);
   const [duration, setDuration] = useState(30);
   const [format, setFormat] = useState('cbt');
   const [loading, setLoading] = useState(false);
   const [uploadMethod, setUploadMethod] = useState<'text' | 'file'>('text');
   const [fileLoading, setFileLoading] = useState(false);
+  const [isShareable, setIsShareable] = useState(false);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
