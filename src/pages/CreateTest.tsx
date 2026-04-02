@@ -73,6 +73,22 @@ export default function CreateTest() {
 
     setLoading(true);
     try {
+      const contentHash = computeContentHash(content.trim());
+
+      // Check question cache
+      const { data: cached } = await supabase
+        .from('question_cache')
+        .select('*')
+        .eq('content_hash', contentHash)
+        .single();
+
+      // Prepare share code if shareable
+      let shareCode: string | null = null;
+      if (isShareable) {
+        const { data: sc } = await supabase.rpc('generate_share_code');
+        shareCode = sc as string;
+      }
+
       const { data: test, error: testError } = await supabase
         .from('tests')
         .insert({
@@ -82,24 +98,48 @@ export default function CreateTest() {
           num_questions: numQuestions,
           duration_minutes: duration,
           question_format: format,
-          status: 'generating',
+          status: cached && (cached as any).questions?.length >= numQuestions ? 'ready' : 'generating',
+          content_hash: contentHash,
+          source_resource_id: resourceState?.resourceId || null,
+          is_public: isShareable,
+          share_code: shareCode,
         })
         .select()
         .single();
 
       if (testError) throw testError;
 
-      // Navigate immediately — test page will poll for readiness
+      // Cache hit path
+      if (cached && (cached as any).questions?.length >= numQuestions) {
+        const cachedQuestions = shuffleArray((cached as any).questions).slice(0, numQuestions);
+        const questionsToInsert = cachedQuestions.map((q: any, i: number) => ({
+          test_id: test.id,
+          question_number: i + 1,
+          question_text: q.question_text,
+          option_a: q.option_a,
+          option_b: q.option_b,
+          option_c: q.option_c,
+          option_d: q.option_d,
+          correct_answer: q.correct_answer,
+          explanation: q.explanation,
+        }));
+
+        await supabase.from('questions').insert(questionsToInsert);
+        await supabase.from('tests').update({ status: 'ready' }).eq('id', test.id);
+
+        // Update cache stats (best-effort, ignore type errors on non-typed table)
+        // No credit deduction for cache hits
+        toast.success('⚡ Questions ready instantly!');
+        navigate(`/test/${test.id}`);
+        return;
+      }
+
+      // Cache miss — generate via AI
       toast.info('Generating questions... You\'ll be notified when ready.');
       navigate(`/test/${test.id}`);
 
-      // Fire generation in background (don't await)
       supabase.functions.invoke('generate-questions', {
-        body: {
-          testId: test.id,
-          content: content.trim(),
-          numQuestions,
-        },
+        body: { testId: test.id, content: content.trim(), numQuestions },
       }).catch((err) => {
         console.error('Background generation failed:', err);
       });
