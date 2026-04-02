@@ -285,6 +285,18 @@ export default function CreateTest() {
             </div>
           </Card>
 
+          {/* Shareable toggle */}
+          <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-card">
+            <div className="flex items-center gap-2">
+              <Link2 className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-medium text-foreground">Make this quiz shareable</p>
+                <p className="text-xs text-muted-foreground">Anyone with the link can take it</p>
+              </div>
+            </div>
+            <Switch checked={isShareable} onCheckedChange={setIsShareable} />
+          </div>
+
           <Button
             onClick={handleGenerate}
             disabled={loading || !content.trim() || !title.trim()}

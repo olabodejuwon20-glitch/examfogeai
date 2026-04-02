@@ -60,14 +60,23 @@ export default function ResultsPage() {
   }, [testId]);
 
   const loadResults = async () => {
-    const [resultRes, questionsRes, banksRes] = await Promise.all([
+    const [resultRes, questionsRes, banksRes, testRes] = await Promise.all([
       supabase.from('test_results').select('*, test:tests(title)').eq('test_id', testId).eq('user_id', user!.id).order('completed_at', { ascending: false }).limit(1).single(),
       supabase.from('questions').select('*').eq('test_id', testId).order('question_number'),
       supabase.from('question_banks').select('id, name').order('name'),
+      supabase.from('tests').select('is_public, share_code').eq('id', testId).single(),
     ]);
     if (resultRes.data) setResult(resultRes.data);
     if (questionsRes.data) setQuestions(questionsRes.data);
     if (banksRes.data) setBanks(banksRes.data as QuestionBank[]);
+    if (testRes.data) {
+      setIsPublic((testRes.data as any).is_public || false);
+      setShareCode((testRes.data as any).share_code || null);
+      if ((testRes.data as any).share_code) {
+        const { count } = await supabase.from('quiz_attempts').select('id', { count: 'exact', head: true }).eq('share_code', (testRes.data as any).share_code);
+        setAttemptCount(count || 0);
+      }
+    }
     setLoading(false);
   };
 
