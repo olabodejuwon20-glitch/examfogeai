@@ -115,3 +115,36 @@ div[style*="lovable"],
 .fixed.bottom-2 {
   display: none !important;
 }
+
+
+/* ── Hide Lovable badge — aggressive selectors ───────────────────────────── */
+#lovable-badge,
+#__lovable-badge,
+[id^="lovable"],
+[id$="lovable"],
+[class*="lovable"],
+[data-lovable],
+[data-testid*="lovable"],
+a[href*="lovable.app"],
+a[href*="lovable.dev"],
+iframe[src*="lovable"],
+div[class*="Badge"],
+div[id*="badge"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  position: absolute !important;
+  overflow: hidden !important;
+  clip: rect(0,0,0,0) !important;
+}
+
+/* Target fixed bottom-right injected container */
+body > div[style*="position: fixed"][style*="bottom"],
+body > div[style*="position:fixed"][style*="bottom"],
+body > a[style*="position: fixed"],
+body > a[style*="position:fixed"] {
+  display: none !important;
+}
