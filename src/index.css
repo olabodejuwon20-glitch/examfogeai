@@ -104,3 +104,19 @@
     -webkit-text-fill-color: transparent;
   }
 }
+
+Add this CSS to the very bottom of src/index.css:
+
+[data-lovable-badge],
+.lovable-badge,
+#lovable-badge,
+a[href*="lovable.app"],
+div[class*="lovable"],
+iframe[src*="lovable"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
